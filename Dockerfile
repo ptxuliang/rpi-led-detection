@@ -1,74 +1,59 @@
-FROM balenalib/raspberry-pi2-alpine-python:latest
+FROM balenalib/raspberry-pi2-debian-python:3.5
+ENV PATH /usr/local/bin:$PATH
+ENV LANG C.UTF-8
 
-# update apt
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends apt-utils \
-	# install necessary build tools \
-	&& apt-get -qy install build-essential cmake pkg-config unzip wget \
-	# install necessary libraries \
-	&& apt-get -qy install \
-		libjpeg-dev \
-		libtiff5-dev \
-		libjasper-dev \
-		libpng12-dev \
-		libavcodec-dev \
-		libavformat-dev \
-		libswscale-dev \
-		libv4l-dev \
-		libxvidcore-dev \
-		libx264-dev \
-	#Had to break the install into chunks as the deps wouldn't resolve.  \
-	&& apt-get -qy install \
-		libgtk2.0-dev \
-		libgtk-3-dev \
-		libatlas-base-dev \
-		gfortran \
-		python3-dev \
-		python3-pip \
-		python3-numpy \
-		libraspberrypi0 \
-		python3-setuptools \
-	# cleanup apt. \
-	&& apt-get purge -y --auto-remove \
-	&& rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && \
+#        apt-get install -y --no-install-recommends \
+RUN install_packages \
+        build-essential \
+        cmake \
+        git \
+        wget \
+        unzip \
+        yasm \
+        pkg-config \
+        libswscale-dev \
+        libtbb2 \
+        libtbb-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libtiff-dev \
+        libavformat-dev \
+        libpq-dev \
+        #python3-pip \
+        #python3-setuptools \
+	python3-numpy libraspberrypi0 \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install numpy imutils 
+RUN echo $(uname -a)
+# RUN pip install picamera
+# RUN pip install numpy opencv-python picamera imutils scikit-image
 
-ARG OPENCV_VERSION=4.1.0
-ENV OPENCV_VERSION $OPENCV_VERSION
+WORKDIR /
+ENV OPENCV_VERSION="4.1.0"
+RUN wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
+&& unzip ${OPENCV_VERSION}.zip \
+&& mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
+&& cd /opencv-${OPENCV_VERSION}/cmake_binary \
+&& cmake -DBUILD_TIFF=ON \
+  -DBUILD_opencv_java=OFF \
+  -DWITH_CUDA=OFF \
+  -DWITH_OPENGL=ON \
+  -DWITH_OPENCL=ON \
+  -DWITH_IPP=ON \
+  -DWITH_TBB=ON \
+  -DWITH_EIGEN=ON \
+  -DWITH_V4L=ON \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_PERF_TESTS=OFF \
+  -DCMAKE_BUILD_TYPE=RELEASE \
+  -DCMAKE_INSTALL_PREFIX=$(python -c "import sys; print(sys.prefix)") \
+  -DPYTHON_EXECUTABLE=$(which python) \
+  -DPYTHON_INCLUDE_DIR=$(python -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
+  -DPYTHON_PACKAGES_PATH=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") \
+  .. \
+&& make install \
+&& rm /${OPENCV_VERSION}.zip \
+&& rm -r /opencv-${OPENCV_VERSION}  
+CMD ["python"]
 
-	# download latest source & contrib
-RUN	cd /tmp \
-	&& wget -c -N -nv -O opencv.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
-	&& unzip opencv.zip \
-	&& wget -c -N -nv -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
-	&& unzip opencv_contrib.zip \
-	# build opencv \
-	&& cd /tmp/opencv-$OPENCV_VERSION \
-	&& mkdir build \
-	&& cd build \
-	&& cmake -D CMAKE_BUILD_TYPE=RELEASE \
-		-D CMAKE_INSTALL_PREFIX=/usr/local \
-		-D INSTALL_C_EXAMPLES=OFF \
-		-D BUILD_PYTHON_SUPPORT=OFF \
-		-D BUILD_NEW_PYTHON_SUPPORT=ON \
-		-D INSTALL_PYTHON_EXAMPLES=OFF \
-		-D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib-$OPENCV_VERSION/modules \
-		-D BUILD_EXAMPLES=OFF .. \
-	&& make -j4  \
-	&& make \
-	&& make install\
-	&& make clean \
-	&& cd / \
-	&& rm -rf /tmp/* \
-	&& pip3 install imutils picamera scipy\
-        && date \
-        && echo "Raspbian $RASPBIAN_VERSION - OpenCV $OPENCV_VERSION Docker Build finished."
-
-
-ARG VCS_REF
-ARG BUILD_DATE
-LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.vcs-url="https://github.com/zencrust/rpi-led-detection"
-
-# copy main files
-CMD ["/bin/bash"]
