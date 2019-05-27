@@ -1,4 +1,4 @@
-FROM balenalib/raspberry-pi2-alpine-python:latest
+FROM balenalib/raspberry-pi-debian-python:3.5
 
 # update apt
 RUN apt-get update \
@@ -23,11 +23,8 @@ RUN apt-get update \
 		libgtk-3-dev \
 		libatlas-base-dev \
 		gfortran \
-		python3-dev \
-		python3-pip \
 		python3-numpy \
 		libraspberrypi0 \
-		python3-setuptools \
 	# cleanup apt. \
 	&& apt-get purge -y --auto-remove \
 	&& rm -rf /var/lib/apt/lists/*
@@ -48,27 +45,23 @@ RUN	cd /tmp \
 	&& cmake -D CMAKE_BUILD_TYPE=RELEASE \
 		-D CMAKE_INSTALL_PREFIX=/usr/local \
 		-D INSTALL_C_EXAMPLES=OFF \
-		-D BUILD_PYTHON_SUPPORT=OFF \
+		-D BUILD_PYTHON_SUPPORT=ON \
 		-D BUILD_NEW_PYTHON_SUPPORT=ON \
-		-D INSTALL_PYTHON_EXAMPLES=OFF \
+		-D INSTALL_PYTHON_EXAMPLES=ON \
 		-D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib-$OPENCV_VERSION/modules \
 		-D BUILD_EXAMPLES=OFF .. \
 	&& make -j4  \
 	&& make \
 	&& make install\
+	# ldconfig && \
 	&& make clean \
+	# cleanup source \
 	&& cd / \
 	&& rm -rf /tmp/* \
-	&& pip3 install imutils picamera scipy\
+	&& pip3 install imutils \
         && date \
         && echo "Raspbian $RASPBIAN_VERSION - OpenCV $OPENCV_VERSION Docker Build finished."
+		
+RUN pip3 install scikit-image picamera
 
-
-ARG VCS_REF
-ARG BUILD_DATE
-LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.vcs-url="https://github.com/zencrust/rpi-led-detection"
-
-# copy main files
 CMD ["/bin/bash"]
