@@ -55,9 +55,7 @@ RUN wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
   .. \
 && make install \
 && rm /${OPENCV_VERSION}.zip \
-&& rm -r /opencv-${OPENCV_VERSION}  
-CMD ["python"]
-
+&& rm -r /opencv-${OPENCV_VERSION} 
 		
 RUN pip3 install scikit-image picamera
 
